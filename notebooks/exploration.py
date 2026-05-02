@@ -36,6 +36,27 @@ print(f"\n--- Temperature moyenne par diagnostic ---")
 temp_by_diag = df.groupby("diagnostic")["temperature"].mean()
 for diag, temp in temp_by_diag.items():
     print(f" {diag:12s} : {temp:.1f} C")
+
+# ===== EXERCICE 1 : Patients par sexe et diagnostic =====
+print(f"\n--- Nombre de patients par sexe et diagnostic ---")
+patients_by_sexe_diag = df.groupby(["sexe", "diagnostic"]).size()
+print(patients_by_sexe_diag)
+
+# ===== EXERCICE 3 : Réflexion sur les données de santé =====
+# Le dataset contient 500 patients actifs.
+# 3 difficultés potentielles avec de vraies données de santé au Sénégal :
+# 1. Qualité des données :
+#    - Erreurs de saisie manuelle, données manquantes ou incomplètes
+#    - Formatage inconsistant (ex: dates, unités de mesure)
+# 2. Vie privée et conformité :
+#    - Protection des données sensibles de santé
+#    - Conformité RGPD, anonymisation insuffisante
+#    - Consentement des patients et accès autorisé
+# 3. Représentativité et biais :
+#    - Biais géographique (surreprésentation urbaine)
+#    - Biais démographique (couches sociales spécifiques)
+#    - Populations rurales et isolées sous-représentées
+
 print(f"\n{'=' * 50}")
 print("Exploration terminee !")
 print("Prochain lab : entrainer un modele ML")
