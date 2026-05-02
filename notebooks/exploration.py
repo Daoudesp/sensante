@@ -3,8 +3,6 @@ SenSante - Exploration du dataset patients_dakar.csv Lab 1 : Git, Python et Stru
 """
 import pandas as pd
 # ===== CHARGER LES DONNEES =====
-# Le fichier patients_dakar.csv est en réalité un format Excel, ce qui provoque
-# une erreur UnicodeDecodeError avec pd.read_csv(). Utiliser le fichier CSV converti.
 df = pd.read_csv("data/patients_dakar.csv")
 # ===== PREMIERS APER US =====
 print("=" * 50)

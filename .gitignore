@@ -9,3 +9,7 @@ models /*. pkl
 # IDE
 .vscode/
 .idea/
+
+# Fichiers temporaires matplotlib 
+*.png
+!figures/*.png
