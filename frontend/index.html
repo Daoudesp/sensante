@@ -7,6 +7,11 @@
     <title>SenSante - Pre-diagnostic</title>
     <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
+    </style>
 </head>
 
 <body class="bg-gray-50 min-h-screen">
@@ -21,6 +26,7 @@
 
     <!-- Contenu principal -->
     <main class="max-w-4xl mx-auto px-4 py-8">
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             <!-- Colonne gauche : formulaire -->
@@ -104,19 +110,40 @@
                 </button>
 
             </div>
-        </div>
 
-        <!-- Colonne droite : resultat -->
-        <!-- Colonne droite : resultat -->
-        <div id="result-section">
-            <div class="bg-white rounded-xl shadow-md p-6 text-center text-gray-400">
-                <p class="text-4xl mb-3">&#129658;</p>
-                <p class="font-medium">Remplissez le formulaire</p>
-                <p class="text-sm mt-1">puis cliquez sur Diagnostiquer</p>
+            <!-- Colonne droite : resultat -->
+            <div id="result-section">
+                <div class="bg-white rounded-xl shadow-md p-6 text-center text-gray-400">
+                    <p class="text-4xl mb-3">🩺</p>
+                    <p class="font-medium">Remplissez le formulaire</p>
+                    <p class="text-sm mt-1">puis cliquez sur Diagnostiquer</p>
+                </div>
+            </div>
+
+        </div>
+        <!-- fin grille -->
+
+        <!-- EXERCICE 2 : Historique des 5 dernières consultations -->
+        <div id="historique-section" class="mt-8 hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">📋 Historique des consultations</h2>
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
+                        <tr>
+                            <th class="px-4 py-3 text-left">#</th>
+                            <th class="px-4 py-3 text-left">Age / Sexe</th>
+                            <th class="px-4 py-3 text-left">Region</th>
+                            <th class="px-4 py-3 text-left">Diagnostic</th>
+                            <th class="px-4 py-3 text-left">Probabilite</th>
+                            <th class="px-4 py-3 text-left">Confiance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historique-body" class="divide-y divide-gray-100">
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        </div>
     </main>
 
     <!-- Footer -->
@@ -126,21 +153,31 @@
 
     <!-- JavaScript -->
     <script>
-        // URL de l'API (a changer si l'API est ailleurs)
         const API_URL = "http://localhost:8000";
+
+        // EXERCICE 2 : tableau historique (max 5 entrees)
+        const historique = [];
+
+        // EXERCICE 1 : icones par diagnostic
+        const icones = {
+            palu:   "🦟",
+            grippe: "🤧",
+            typh:   "🌡️",
+            sain:   "✅"
+        };
 
         async function diagnostiquer() {
 
             // 1. Recuperer les valeurs du formulaire
             const patient = {
-                age: parseInt(document.getElementById("age").value),
-                sexe: document.getElementById("sexe").value,
+                age:         parseInt(document.getElementById("age").value),
+                sexe:        document.getElementById("sexe").value,
                 temperature: parseFloat(document.getElementById("temperature").value),
                 tension_sys: parseInt(document.getElementById("tension_sys").value),
-                toux: document.getElementById("toux").checked,
-                fatigue: document.getElementById("fatigue").checked,
-                maux_tete: document.getElementById("maux_tete").checked,
-                region: document.getElementById("region").value
+                toux:        document.getElementById("toux").checked,
+                fatigue:     document.getElementById("fatigue").checked,
+                maux_tete:   document.getElementById("maux_tete").checked,
+                region:      document.getElementById("region").value
             };
 
             // 2. Verifier les champs obligatoires
@@ -148,6 +185,7 @@
                 afficherErreur("Veuillez remplir tous les champs.");
                 return;
             }
+
             // 3. Afficher le spinner de chargement
             afficherChargement();
 
@@ -156,9 +194,7 @@
                 // 4. Envoyer la requete a l'API
                 const response = await fetch(API_URL + "/predict", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(patient)
                 });
 
@@ -174,70 +210,142 @@
                 // 7. Afficher le resultat
                 afficherResultat(resultat);
 
+                // EXERCICE 2 : ajouter a l'historique apres chaque diagnostic
+                ajouterHistorique(patient, resultat);
+
             } catch (error) {
                 afficherErreur("Erreur de connexion : " + error.message);
             }
         }
+
         function afficherChargement() {
             const section = document.getElementById("result-section");
             section.innerHTML = `
-    <div class="bg-white rounded-xl shadow-md p-6 text-center">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-      <p class="text-gray-500">Analyse en cours...</p>
-    </div>`;
+                <div class="bg-white rounded-xl shadow-md p-6 text-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p class="text-gray-500">Analyse en cours...</p>
+                </div>`;
         }
 
         function afficherResultat(r) {
 
             // Codes couleur par diagnostic
             const couleurs = {
-                palu: { bg: "bg-red-100", text: "text-red-800", bar: "bg-red-500", badge: "bg-red-500" },
+                palu:   { bg: "bg-red-100",    text: "text-red-800",    bar: "bg-red-500",    badge: "bg-red-500"    },
                 grippe: { bg: "bg-orange-100", text: "text-orange-800", bar: "bg-orange-500", badge: "bg-orange-500" },
-                typh: { bg: "bg-yellow-100", text: "text-yellow-800", bar: "bg-yellow-500", badge: "bg-yellow-500" },
-                sain: { bg: "bg-green-100", text: "text-green-800", bar: "bg-green-500", badge: "bg-green-500" }
+                typh:   { bg: "bg-yellow-100", text: "text-yellow-800", bar: "bg-yellow-500", badge: "bg-yellow-500" },
+                sain:   { bg: "bg-green-100",  text: "text-green-800",  bar: "bg-green-500",  badge: "bg-green-500"  }
             };
 
-            const c = couleurs[r.diagnostic] || couleurs["sain"];
+            const c   = couleurs[r.diagnostic] || couleurs["sain"];
             const pct = Math.round(r.probabilite * 100);
+
+            // EXERCICE 1 : icone selon le diagnostic
+            const icone = icones[r.diagnostic] || "🩺";
+
             const section = document.getElementById("result-section");
-
             section.innerHTML = `
-    <div class="bg-white rounded-xl shadow-md p-6">
-      <h2 class="text-xl font-bold text-gray-800 mb-4">Resultat</h2>
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Resultat</h2>
 
-      <div class="${c.bg} rounded-lg p-4 mb-4">
-        <p class="text-sm text-gray-600">Diagnostic :</p>
-        <p class="text-2xl font-bold ${c.text} uppercase mt-1">${r.diagnostic}</p>
-      </div>
+                    <div class="${c.bg} rounded-lg p-4 mb-4">
+                        <p class="text-sm text-gray-600">Diagnostic :</p>
+                        <p class="text-2xl font-bold ${c.text} uppercase mt-1">${icone} ${r.diagnostic}</p>
+                    </div>
 
-      <div class="mb-4">
-        <div class="flex justify-between mb-1">
-          <span class="text-sm text-gray-600">Probabilite</span>
-          <span class="text-sm font-bold ${c.text}">${pct}%</span>
-        </div>
-        <div class="w-full bg-gray-200 rounded-full h-3">
-          <div class="${c.bar} h-3 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-        </div>
-      </div>
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-gray-600">Probabilite</span>
+                            <span class="text-sm font-bold ${c.text}">${pct}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="${c.bar} h-3 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
 
-      <div class="flex items-center gap-2 mb-3">
-        <span class="${c.badge} text-white text-xs px-2 py-1 rounded-full">${r.confiance}</span>
-        <span class="text-sm text-gray-600">confiance</span>
-      </div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="${c.badge} text-white text-xs px-2 py-1 rounded-full">${r.confiance}</span>
+                        <span class="text-sm text-gray-600">confiance</span>
+                    </div>
 
-      <div class="bg-gray-50 rounded-lg p-3">
-        <p class="text-sm text-gray-700">${r.message}</p>
-      </div>
-    </div>`;
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="text-sm text-gray-700">${r.message}</p>
+                    </div>
+                </div>`;
         }
 
         function afficherErreur(msg) {
             const section = document.getElementById("result-section");
             section.innerHTML = `
-    <div class="bg-red-50 border border-red-200 rounded-xl p-6">
-      <p class="text-red-700 font-medium">${msg}</p>
-      <p class="text-red-500 text-sm mt-2">Verifiez votre connexion et reessayez.</p>
-    </div>`;
+                <div class="bg-red-50 border border-red-200 rounded-xl p-6">
+                    <p class="text-red-700 font-medium">${msg}</p>
+                    <p class="text-red-500 text-sm mt-2">Verifiez votre connexion et reessayez.</p>
+                </div>`;
+        }
+
+        // ============================================
+        // EXERCICE 2 : Historique des consultations
+        // ============================================
+        function ajouterHistorique(patient, resultat) {
+            const icone = icones[resultat.diagnostic] || "🩺";
+            const pct   = Math.round(resultat.probabilite * 100);
+
+            // Ajouter en tete, garder max 5
+            historique.unshift({
+                age:         patient.age,
+                sexe:        patient.sexe,
+                region:      patient.region,
+                diagnostic:  resultat.diagnostic,
+                icone:       icone,
+                probabilite: pct,
+                confiance:   resultat.confiance
+            });
+
+            if (historique.length > 5) historique.pop();
+
+            afficherHistorique();
+        }
+
+        function afficherHistorique() {
+            document.getElementById("historique-section").classList.remove("hidden");
+
+            const couleursBadge = {
+                palu:   "bg-red-500",
+                grippe: "bg-orange-500",
+                typh:   "bg-yellow-500",
+                sain:   "bg-green-500"
+            };
+
+            const tbody = document.getElementById("historique-body");
+            tbody.innerHTML = historique.map((h, i) => `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 py-3 text-gray-400 font-mono">${i + 1}</td>
+                    <td class="px-4 py-3 text-gray-700">${h.age} ans / ${h.sexe}</td>
+                    <td class="px-4 py-3 text-gray-600">${h.region}</td>
+                    <td class="px-4 py-3 font-bold uppercase">
+                        <span class="inline-flex items-center gap-1">
+                            ${h.icone}
+                            <span class="${couleursBadge[h.diagnostic] || 'bg-gray-400'} text-white text-xs px-2 py-0.5 rounded-full">
+                                ${h.diagnostic}
+                            </span>
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-20 bg-gray-200 rounded-full h-2">
+                                <div class="${couleursBadge[h.diagnostic] || 'bg-gray-400'} h-2 rounded-full"
+                                     style="width: ${h.probabilite}%"></div>
+                            </div>
+                            <span class="text-gray-600 text-xs">${h.probabilite}%</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="${couleursBadge[h.diagnostic] || 'bg-gray-400'} text-white text-xs px-2 py-0.5 rounded-full">
+                            ${h.confiance}
+                        </span>
+                    </td>
+                </tr>
+            `).join("");
         }
     </script>
 

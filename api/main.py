@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 import joblib
 import numpy as np
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="SenSante API",
@@ -16,6 +17,15 @@ def health_check():
     return {
         "status": "ok",
         "message": "SenSante API is running"
+    }
+@app.get("/model-info")
+def model_info():
+    """Informations sur le modèle chargé."""
+    return {
+        "type": type(model).__name__,
+        "n_estimators": model.n_estimators,
+        "classes": list(model.classes_),
+        "n_features": model.n_features_in_
     }
 
 
@@ -120,3 +130,28 @@ def predict(patient: PatientInput):
         confiance=confiance,
         message=messages.get(diagnostic, "Consultez un medecin.")
     )
+
+@app.options("/predict")
+def predict_preflight():
+    """Répond au préflight OPTIONS sans en-têtes CORS."""
+    return {"detail": "preflight response"}
+
+#Exercice 1 et 2 voir test
+
+#Exercice 3 — Réponse (3 phrases)
+#FastAPI est basé sur le framework ASGI (Asynchronous Server Gateway Interface) et utilise uvicorn comme serveur asynchrone,
+#ce qui lui permet de gérer plusieurs requêtes simultanées sans blocage grâce à la boucle d'événements Python (asyncio). Dans notre cas, 
+#la fonction predict est synchrone (def, pas async def), donc FastAPI la délègue automatiquement à un thread pool, 
+#ce qui permet à deux requêtes arrivant en même temps d'être traitées en parallèle dans des threads séparés sans se bloquer mutuellement.'
+#' Le modèle model.predict() de scikit-learn est stateless (il ne modifie aucune variable globale lors de la prédiction), '
+#'donc plusieurs appels simultanés sont parfaitement sûrs — il n'y a pas de risque de corruption de données entre les deux requêtes concurrentes.
+
+
+# Autoriser les requetes depuis le frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # En dev : tout accepter
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
