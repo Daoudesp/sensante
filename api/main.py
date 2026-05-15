@@ -1,38 +1,56 @@
 # api/main.py
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
+import os
 import joblib
 import numpy as np
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+from groq import Groq
 
+# --- Charger les variables d'environnement ---
+load_dotenv()
+
+# --- Client Groq (chargé au démarrage) ---
+groq_client = None
+groq_api_key = os.getenv("GROQ_API_KEY")
+
+if groq_api_key:
+    groq_client = Groq(api_key=groq_api_key)
+    print("Client Groq initialisé.")
+else:
+    print("ATTENTION : GROQ_API_KEY non trouvée. "
+          "/explain sera désactivé.")
+
+# --- Application FastAPI ---
 app = FastAPI(
     title="SenSante API",
     description="Assistant pre-diagnostic medical pour le Senegal",
     version="0.2.0"
 )
 
-@app.get("/health")
-def health_check():
-    """Verification de l'etat de l'API."""
-    return {
-        "status": "ok",
-        "message": "SenSante API is running"
-    }
-@app.get("/model-info")
-def model_info():
-    """Informations sur le modèle chargé."""
-    return {
-        "type": type(model).__name__,
-        "n_estimators": model.n_estimators,
-        "classes": list(model.classes_),
-        "n_features": model.n_features_in_
-    }
+# --- Middleware CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Charger le modèle et les encodeurs au démarrage ---
+print("Chargement du modele...")
+model = joblib.load("models/model.pkl")
+le_sexe = joblib.load("models/encoder_sexe.pkl")
+le_region = joblib.load("models/encoder_region.pkl")
+feature_cols = joblib.load("models/feature_cols.pkl")
+print(f"Modele charge : {type(model).__name__}")
+print(f"Classes : {list(model.classes_)}")
 
 
-
-# --- Schemas Pydantic ---
+# --- Schémas Pydantic ---
 class PatientInput(BaseModel):
-    """Donnees d'entree : les symptomes d'un patient."""
+    """Données d'entrée : les symptômes d'un patient."""
     age: int = Field(..., ge=0, le=120, description="Age en annees")
     sexe: str = Field(..., description="Sexe : M ou F")
     temperature: float = Field(..., ge=35.0, le=42.0,
@@ -44,32 +62,70 @@ class PatientInput(BaseModel):
     maux_tete: bool = Field(..., description="Presence de maux de tete")
     region: str = Field(..., description="Region du Senegal")
 
+
 class DiagnosticOutput(BaseModel):
-    """Donnees de sortie : le resultat du diagnostic."""
+    """Données de sortie : le résultat du diagnostic."""
     diagnostic: str = Field(..., description="Diagnostic predit")
     probabilite: float = Field(..., description="Probabilite du diagnostic")
     confiance: str = Field(..., description="Niveau de confiance")
     message: str = Field(..., description="Recommandation")
 
 
+class ExplainInput(BaseModel):
+    diagnostic: str = Field(...,
+        description="Diagnostic prédit par le modèle")
+    probabilite: float = Field(...,
+        description="Probabilité du diagnostic")
+    age: int = Field(...)
+    sexe: str = Field(...)
+    temperature: float = Field(...)
+    region: str = Field(...)
 
-# --- Charger le modele et les encodeurs au demarrage ---
-print("Chargement du modele...")
-model = joblib.load("models/model.pkl")
-le_sexe = joblib.load("models/encoder_sexe.pkl")
-le_region = joblib.load("models/encoder_region.pkl")
-feature_cols = joblib.load("models/feature_cols.pkl")
-print(f"Modele charge : {type(model).__name__}")
-print(f"Classes : {list(model.classes_)}")    
+
+class ExplainOutput(BaseModel):
+    explication: str = Field(...,
+        description="Explication en français")
+    modele_llm: str = Field(
+        default="llama-3.1-8b-instant",
+        description="Modèle LLM utilisé")
+
+
+# --- System Prompt (en dehors des classes) ---
+SYSTEM_PROMPT = """Tu es un assistant médical sénégalais.
+Tu reçois un diagnostic et des données patient.
+Explique le résultat en français simple,
+comme un médecin parlerait à son patient.
+Sois rassurant mais recommande toujours
+une consultation médicale.
+Maximum 3 phrases.
+Ne fais JAMAIS de diagnostic toi-même.
+Tu expliques uniquement le diagnostic fourni."""
+
+
+# --- Routes ---
+@app.get("/health")
+def health_check():
+    """Vérification de l'état de l'API."""
+    return {
+        "status": "ok",
+        "message": "SenSante API is running"
+    }
+
+
+@app.get("/model-info")
+def model_info():
+    """Informations sur le modèle chargé."""
+    return {
+        "type": type(model).__name__,
+        "n_estimators": model.n_estimators,
+        "classes": list(model.classes_),
+        "n_features": model.n_features_in_
+    }
+
 
 @app.post("/predict", response_model=DiagnosticOutput)
 def predict(patient: PatientInput):
-    """
-    Predire un diagnostic a partir des symptomes d'un patient.
-    Recoit les symptomes en JSON, renvoie le diagnostic,
-    la probabilite et une recommandation.
-    """
-    # 1. Encoder les variables categoriques
+    """Prédire un diagnostic à partir des symptômes d'un patient."""
     try:
         sexe_enc = le_sexe.transform([patient.sexe])[0]
     except ValueError:
@@ -90,7 +146,6 @@ def predict(patient: PatientInput):
             message=f"Region inconnue : {patient.region}"
         )
 
-    # 2. Construire le vecteur de features
     features = np.array([[
         patient.age,
         sexe_enc,
@@ -102,12 +157,10 @@ def predict(patient: PatientInput):
         region_enc
     ]])
 
-    # 3. Predire
     diagnostic = model.predict(features)[0]
     probas = model.predict_proba(features)[0]
     proba_max = float(probas.max())
 
-    # 4. Determiner le niveau de confiance
     if proba_max >= 0.7:
         confiance = "haute"
     elif proba_max >= 0.4:
@@ -115,7 +168,6 @@ def predict(patient: PatientInput):
     else:
         confiance = "faible"
 
-    # 5. Generer la recommandation
     messages = {
         "palu": "Suspicion de paludisme. Consultez un medecin rapidement.",
         "grippe": "Suspicion de grippe. Repos et hydratation recommandes.",
@@ -123,7 +175,6 @@ def predict(patient: PatientInput):
         "sain": "Pas de pathologie detectee. Continuez a surveiller."
     }
 
-    # 6. Renvoyer le resultat
     return DiagnosticOutput(
         diagnostic=diagnostic,
         probabilite=round(proba_max, 2),
@@ -131,27 +182,46 @@ def predict(patient: PatientInput):
         message=messages.get(diagnostic, "Consultez un medecin.")
     )
 
+
 @app.options("/predict")
 def predict_preflight():
     """Répond au préflight OPTIONS sans en-têtes CORS."""
     return {"detail": "preflight response"}
 
-#Exercice 1 et 2 voir test
 
-#Exercice 3 — Réponse (3 phrases)
-#FastAPI est basé sur le framework ASGI (Asynchronous Server Gateway Interface) et utilise uvicorn comme serveur asynchrone,
-#ce qui lui permet de gérer plusieurs requêtes simultanées sans blocage grâce à la boucle d'événements Python (asyncio). Dans notre cas, 
-#la fonction predict est synchrone (def, pas async def), donc FastAPI la délègue automatiquement à un thread pool, 
-#ce qui permet à deux requêtes arrivant en même temps d'être traitées en parallèle dans des threads séparés sans se bloquer mutuellement.'
-#' Le modèle model.predict() de scikit-learn est stateless (il ne modifie aucune variable globale lors de la prédiction), '
-#'donc plusieurs appels simultanés sont parfaitement sûrs — il n'y a pas de risque de corruption de données entre les deux requêtes concurrentes.
+@app.post("/explain", response_model=ExplainOutput)
+def explain(data: ExplainInput):
+    """Expliquer un diagnostic en français avec un LLM."""
+    if not groq_client:
+        return ExplainOutput(
+            explication="Service d'explication indisponible. "
+                        "Clé API non configurée.",
+            modele_llm="aucun"
+        )
 
+    explication = ""  # valeur par défaut
 
-# Autoriser les requetes depuis le frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], # En dev : tout accepter
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    user_prompt = (
+        f"Patient : {data.sexe}, {data.age} ans, "
+        f"région {data.region}\n"
+        f"Température : {data.temperature}°C\n"
+        f"Diagnostic du modèle : {data.diagnostic} "
+        f"(probabilité {data.probabilite:.0%})\n"
+        f"Explique ce résultat au patient."
+    )
+
+    try:
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=200,
+            temperature=0.3
+        )
+        explication = response.choices[0].message.content
+    except Exception as e:
+        explication = f"Erreur lors de l'appel au LLM : {str(e)}"
+
+    return ExplainOutput(explication=explication)
