@@ -4,8 +4,8 @@ __pycache__/
 *.pyc
 venv/
 .env
-# Modele ML (trop gros pour GitHub)
-models/*.pkl
+# Modeles ML (~2 Mo) — requis pour le Space Hugging Face
+# models/*.pkl
 # Fichiers OS
 .DS_Store
 Thumbs.db
