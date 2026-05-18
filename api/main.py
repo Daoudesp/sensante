@@ -7,8 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from groq import Groq
+<<<<<<< HEAD
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+=======
+>>>>>>> 7e7ba1858075cd2fda33750293ce4f92e157fdd4
 
 # --- Charger les variables d'environnement ---
 load_dotenv()
@@ -226,6 +229,7 @@ def explain(data: ExplainInput):
     except Exception as e:
         explication = f"Erreur lors de l'appel au LLM : {str(e)}"
 
+<<<<<<< HEAD
     return ExplainOutput(explication=explication)
 
 
@@ -236,3 +240,6 @@ app.mount("/static", StaticFiles(directory="frontend"), name="static")
 def serve_frontend():
     """Servir la page d'accueil."""
     return FileResponse("frontend/index.html")
+=======
+    return ExplainOutput(explication=explication)
+>>>>>>> 7e7ba1858075cd2fda33750293ce4f92e157fdd4
