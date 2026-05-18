@@ -1,3 +1,11 @@
+---
+title: sensante
+emoji: 🩺
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
 # SenSante
 Assistant de pre-diagnostic medical pour le Senegal.
 ## Description
@@ -10,15 +18,3 @@ SenSante utilise le Machine Learning pour aider au pre-diagnostic des maladies c
 Daouda CISSE - L2 GLSI - ESP/UCAD
 ## Cours
 Integration de Modeles IA - Dr. El Hadji Bassirou TOURE
----
-title: sensante
-emoji: 🩺
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-pinned: false
----
-
-# Sensante
-
-Application IA médicale avec FastAPI et Docker.
