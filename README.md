@@ -28,7 +28,6 @@ https://Daouda750-sensante.hf.space
 
 Daouda CISSE - L2 GLSI - ESP/UCAD - 2026
 
-
 ## Cours
 
 Intégration de Modèles IA - Dr. El Hadji Bassirou TOURE
