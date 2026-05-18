@@ -12,21 +12,22 @@ pinned: false
 
 Assistant de pré-diagnostic médical pour le Sénégal.
 
-## Description
+## Démo en ligne
 
-SenSante utilise le Machine Learning pour aider au pré-diagnostic des maladies courantes (paludisme, grippe, typhoïde) à partir des symptômes du patient.
+https://Daouda750-sensante.hf.space
 
-## Structure du projet
+## Stack
 
-- `data/` : Données patients (CSV)
-- `models/` : Modèle ML sérialisé
-- `api/` : API FastAPI
-- `frontend/` : Interface web
-- `notebooks/` : Scripts d’exploration
+* scikit-learn (modèle ML)
+* FastAPI (API REST)
+* Tailwind CSS (frontend responsive)
+* Groq / Llama 3 (explication LLM)
+* Docker (conteneurisation)
 
 ## Auteur
 
-Daouda CISSE - L2 GLSI - ESP/UCAD
+Daouda CISSE - L2 GLSI - ESP/UCAD - 2026
+
 
 ## Cours
 
